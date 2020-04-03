@@ -22,7 +22,7 @@ LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE = '.*Changed minimum cooling level to {}.
 
 def test_dynamic_minimal_table(testbed_devices, mocker_factory):
     air_flow_dirs = ['p2c', 'c2p', 'unk']
-    max_temperature = 120000 # 120 C
+    max_temperature = 45000 # 45 C
     dut = testbed_devices['dut']
     mocker = mocker_factory(dut, 'MinTableMocker')
     loganalyzer = LogAnalyzer(ansible_host=dut, marker_prefix='thermal_control')
@@ -39,7 +39,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, trust_state)
-            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
+            restart_thermal_control_daemon(dut)
 
         temperature = random.randint(0, max_temperature)
         logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
@@ -47,7 +47,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, not trust_state)
-            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
+            restart_thermal_control_daemon(dut)
 
 
 @pytest.mark.disable_loganalyzer
@@ -62,7 +62,8 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
     single_fan_mocker = mocker_factory(dut, 'SingleFanMocker')
     logging.info('Mock FAN absence...')
     single_fan_mocker.mock_absence()
-    assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.eq)
+    assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.eq), \
+        'Current cooling state is {}'.format(get_cooling_cur_state(dut))
     time.sleep(THERMAL_CONTROL_TEST_CHECK_INTERVAL)
     full_speeds = []
     for index in range(psu_num):
@@ -72,7 +73,8 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
     logging.info('Full speed={}'.format(full_speeds))
     logging.info('Mock FAN presence...')
     single_fan_mocker.mock_presence()
-    assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.ne)
+    assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.ne), \
+        'Current cooling state is {}'.format(get_cooling_cur_state(dut))
     cooling_cur_state = get_cooling_cur_state(dut)
     logging.info('Cooling level changed to {}'.format(cooling_cur_state))
     current_speeds = []

@@ -919,7 +919,7 @@ class MinTableMocker(object):
             min_temp = int(range_str_list[0])
             max_temp = int(range_str_list[1])
             if min_temp <= temperature <= max_temp:
-                return cooling_level
+                return cooling_level - 10
         
         return None
 
