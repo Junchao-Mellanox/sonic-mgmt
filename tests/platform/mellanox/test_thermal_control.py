@@ -21,7 +21,7 @@ LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE = '.*Changed minimum cooling level to {}.
 
 
 @pytest.mark.disable_loganalyzer
-def test_dynamic_minimal_table(testbed_devices, mocker_factory):
+def test_dynamic_minimum_table(testbed_devices, mocker_factory):
     air_flow_dirs = ['p2c', 'c2p', 'unk']
     max_temperature = 45000 # 45 C
     dut = testbed_devices['dut']
@@ -43,7 +43,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
             time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
         temperature = random.randint(0, max_temperature)
-        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
+        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, not trust_state))
         expect_minimum_cooling_level = mocker.get_expect_cooling_level(air_flow_dir, temperature, not trust_state)
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
@@ -60,11 +60,14 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
     if not hot_swappable:
         pytest.skip('The SKU {} does not support this test case.'.format(hwsku))
 
+    logging.info('Create mocker, it may take a few seconds...')
     single_fan_mocker = mocker_factory(dut, 'SingleFanMocker')
     logging.info('Mock FAN absence...')
     single_fan_mocker.mock_absence()
     assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.eq), \
         'Current cooling state is {}'.format(get_cooling_cur_state(dut))
+    
+    logging.info('Wait {} seconds for the policy to take effect...'.format(THERMAL_CONTROL_TEST_CHECK_INTERVAL))
     time.sleep(THERMAL_CONTROL_TEST_CHECK_INTERVAL)
     full_speeds = []
     for index in range(psu_num):
@@ -76,6 +79,8 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
     single_fan_mocker.mock_presence()
     assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.ne), \
         'Current cooling state is {}'.format(get_cooling_cur_state(dut))
+    logging.info('Wait {} seconds for the policy to take effect...'.format(THERMAL_CONTROL_TEST_CHECK_INTERVAL))
+    time.sleep(THERMAL_CONTROL_TEST_CHECK_INTERVAL)
     cooling_cur_state = get_cooling_cur_state(dut)
     logging.info('Cooling level changed to {}'.format(cooling_cur_state))
     current_speeds = []
@@ -85,6 +90,8 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
 
     logging.info('Current speed={}'.format(current_speeds))
     index = 0
+    if cooling_cur_state < 6:
+        cooling_cur_state = 6
     expect_multiple = float(10) / cooling_cur_state
     while index < psu_num:
         full_speed = full_speeds[index]
