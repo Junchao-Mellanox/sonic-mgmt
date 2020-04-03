@@ -35,7 +35,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         temperature = random.randint(0, max_temperature)
         trust_state = True if random.randint(0, 1) else False
         logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
-        expect_minimum_cooling_level = mocker.expect_cooling_level
+        expect_minimum_cooling_level = mocker.get_expect_cooling_level(air_flow_dir, temperature, trust_state)
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, trust_state)
@@ -43,7 +43,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
 
         temperature = random.randint(0, max_temperature)
         logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
-        expect_minimum_cooling_level = mocker.expect_cooling_level
+        expect_minimum_cooling_level = mocker.get_expect_cooling_level(air_flow_dir, temperature, not trust_state)
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, not trust_state)

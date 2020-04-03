@@ -908,7 +908,20 @@ class MinTableMocker(object):
     TRUST_PATH = 'module1_temp_fault'
     def __init__(self, dut):
         self.mock_helper = MockerHelper(dut)
-        self.expect_cooling_level = None
+
+    def get_expect_cooling_level(self, air_flow_dir, temperature, trust_state):
+        hwsku = self.mock_helper.dut.facts["hwsku"]
+        minimum_table = MINIMUM_TABLE[hwsku]
+        row = minimum_table['{}_{}'.format(air_flow_dir, 'trust' if trust_state else 'untrust')]
+        temperature = temperature / 1000
+        for range_str, cooling_level in row.items():
+            range_str_list = range_str.split(':')
+            min_temp = int(range_str_list[0])
+            max_temp = int(range_str_list[1])
+            if min_temp <= temperature <= max_temp:
+                return cooling_level
+        
+        return None
 
     def mock_min_table(self, air_flow_dir, temperature, trust_state):
         trust_value = '0' if trust_state else '1'
@@ -925,18 +938,6 @@ class MinTableMocker(object):
         self.mock_helper.mock_thermal_value(FAN_AMB_PATH, str(fan_temp))
         self.mock_helper.mock_thermal_value(PORT_AMB_PATH, str(port_temp))
         self.mock_helper.mock_thermal_value(TRUST_PATH, str(trust_value))
-
-        hwsku = self.mock_helper.dut.facts["hwsku"]
-        minimum_table = MINIMUM_TABLE[hwsku]
-        row = minimum_table['{}_{}'.format(air_flow_dir, 'trust' if trust_state else 'untrust')]
-        for range_str, cooling_level in row.items():
-            range_str_list = range_str.split(':')
-            min_temp = int(range_str_list[0])
-            max_temp = int(range_str_list[1])
-            temperature = temperature / 1000
-            if min_temp <= temperature <= max_temp:
-                self.expect_cooling_level = cooling_level
-                break
 
     def deinit(self):
         """
