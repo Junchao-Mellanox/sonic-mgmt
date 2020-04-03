@@ -15,11 +15,12 @@ THERMAL_CONTROL_TEST_CHECK_INTERVAL = 5
 COOLING_CUR_STATE_PATH = '/run/hw-management/thermal/cooling_cur_state'
 PSU_PRESENCE_PATH = '/run/hw-management/thermal/psu{}_status'
 PSU_SPEED_PATH = '/run/hw-management/thermal/psu{}_fan1_speed_get'
-PSU_SPEED_TOLERANCE = 0.15
+PSU_SPEED_TOLERANCE = 0.25
 
 LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE = '.*Changed minimum cooling level to {}.*'
 
 
+@pytest.mark.disable_loganalyzer
 def test_dynamic_minimal_table(testbed_devices, mocker_factory):
     air_flow_dirs = ['p2c', 'c2p', 'unk']
     max_temperature = 45000 # 45 C
@@ -39,7 +40,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, trust_state)
-            restart_thermal_control_daemon(dut)
+            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
         temperature = random.randint(0, max_temperature)
         logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
@@ -47,7 +48,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
             mocker.mock_min_table(air_flow_dir, temperature, not trust_state)
-            restart_thermal_control_daemon(dut)
+            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
 
 @pytest.mark.disable_loganalyzer

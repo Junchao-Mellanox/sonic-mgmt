@@ -935,9 +935,9 @@ class MinTableMocker(object):
             fan_temp = temperature
             port_temp = temperature
 
-        self.mock_helper.mock_thermal_value(FAN_AMB_PATH, str(fan_temp))
-        self.mock_helper.mock_thermal_value(PORT_AMB_PATH, str(port_temp))
-        self.mock_helper.mock_thermal_value(TRUST_PATH, str(trust_value))
+        self.mock_helper.mock_thermal_value(self.FAN_AMB_PATH, str(fan_temp))
+        self.mock_helper.mock_thermal_value(self.PORT_AMB_PATH, str(port_temp))
+        self.mock_helper.mock_thermal_value(self.TRUST_PATH, str(trust_value))
 
     def deinit(self):
         """
