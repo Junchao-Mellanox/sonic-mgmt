@@ -1,3 +1,4 @@
+import logging
 import operator
 import pytest
 import random
@@ -33,6 +34,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
         air_flow_dirs.remove(air_flow_dir)
         temperature = random.randint(0, max_temperature)
         trust_state = True if random.randint(0, 1) else False
+        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
         expect_minimum_cooling_level = mocker.expect_cooling_level
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
@@ -40,6 +42,7 @@ def test_dynamic_minimal_table(testbed_devices, mocker_factory):
             time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
         temperature = random.randint(0, max_temperature)
+        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
         expect_minimum_cooling_level = mocker.expect_cooling_level
         loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
         with loganalyzer:
@@ -57,6 +60,7 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
         pytest.skip('The SKU {} does not support this test case.'.format(hwsku))
 
     single_fan_mocker = mocker_factory(dut, 'SingleFanMocker')
+    logging.info('Mock FAN absence...')
     single_fan_mocker.mock_absence()
     assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.eq)
     time.sleep(THERMAL_CONTROL_TEST_CHECK_INTERVAL)
@@ -65,14 +69,18 @@ def test_set_psu_fan_speed(testbed_devices, mocker_factory):
         speed = get_psu_speed(dut, index)
         full_speeds.append(speed)
 
+    logging.info('Full speed={}'.format(full_speeds))
+    logging.info('Mock FAN presence...')
     single_fan_mocker.mock_presence()
     assert wait_until(THERMAL_CONTROL_TEST_WAIT_TIME, THERMAL_CONTROL_TEST_CHECK_INTERVAL, check_cooling_cur_state, dut, 10, operator.ne)
     cooling_cur_state = get_cooling_cur_state(dut)
+    logging.info('Cooling level changed to {}'.format(cooling_cur_state))
     current_speeds = []
     for index in range(psu_num):
         speed = get_psu_speed(dut, index)
         current_speeds.append(speed)
 
+    logging.info('Current speed={}'.format(current_speeds))
     index = 0
     expect_multiple = float(10) / cooling_cur_state
     while index < psu_num:
@@ -114,7 +122,3 @@ def get_cooling_cur_state(dut):
 def check_cooling_cur_state(dut, expect_value, op):
     actual_value = get_cooling_cur_state(dut)
     return op(actual_value, expect_value)
-
-
-def check_particular_log(loganalyzer, expect_log)
-    loganalyzer.expect_regex = [expect_log]

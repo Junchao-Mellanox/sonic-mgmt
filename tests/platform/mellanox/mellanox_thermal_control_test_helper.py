@@ -908,7 +908,6 @@ class MinTableMocker(object):
     TRUST_PATH = 'module1_temp_fault'
     def __init__(self, dut):
         self.mock_helper = MockerHelper(dut)
-        self.hwsku = 
         self.expect_cooling_level = None
 
     def mock_min_table(self, air_flow_dir, temperature, trust_state):
