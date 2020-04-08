@@ -254,11 +254,12 @@ class FanDrawerData:
         :param index: Fan drawer index.
         """
         self.index = index
+        self.helper = mock_helper
+        dut_hwsku = self.helper.dut.facts["hwsku"]
         if SWITCH_MODELS[dut_hwsku]['fans']['hot_swappable']:
             self.name = 'drawer{}'.format(index)
         else:
             self.name = 'N/A'
-        self.helper = mock_helper
         self.fan_data_list = []
         self.mocked_presence = None
         self.mocked_direction = None
