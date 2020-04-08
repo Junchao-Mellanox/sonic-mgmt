@@ -281,7 +281,7 @@ def check_cli_output_with_mocker(dut, mocker_object, command, max_wait_time):
     actual_data = {}
     for line in output["stdout_lines"][2:]:
         fields = get_fields(line, field_ranges)
-        actual_data[fields[0]] = fields
+        actual_data[fields[1]] = fields
     
     return mocker_object.check_result(actual_data)
 

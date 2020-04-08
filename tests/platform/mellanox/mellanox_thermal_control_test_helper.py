@@ -254,6 +254,10 @@ class FanDrawerData:
         :param index: Fan drawer index.
         """
         self.index = index
+        if SWITCH_MODELS[dut_hwsku]['fans']['hot_swappable']:
+            self.name = 'drawer{}'.format(index)
+        else:
+            self.name = 'N/A'
         self.helper = mock_helper
         self.fan_data_list = []
         self.mocked_presence = None
@@ -458,10 +462,10 @@ class FanData:
 
         target_speed = self.get_target_speed()
         mocked_speed = int(self.mocked_speed)
-        if mocked_speed > target_speed * (1 + FanData):
+        if mocked_speed > target_speed * (1 + FanData.SPEED_TOLERANCE):
             return 'red'
 
-        if mocked_speed < target_speed * (1 - FanData):
+        if mocked_speed < target_speed * (1 - FanData.SPEED_TOLERANCE):
             return 'red'
 
         return 'green'
@@ -599,6 +603,7 @@ class RandomFanStatusMocker(FanStatusMocker):
                     fan_data.mock_status(random.randint(0, 1))
                     fan_data.mock_speed(random.randint(0, 100))
                     self.expected_data[fan_data.name] = [
+                        drawer_data.name,
                         fan_data.name,
                         '{}%'.format(fan_data.mocked_speed),
                         drawer_data.mocked_direction,
@@ -608,6 +613,7 @@ class RandomFanStatusMocker(FanStatusMocker):
                     ]
                 else:
                     self.expected_data[fan_data.name] = [
+                        drawer_data.name,
                         fan_data.name,
                         'N/A',
                         'N/A',
@@ -630,6 +636,7 @@ class RandomFanStatusMocker(FanStatusMocker):
                 fan_data.mock_speed(speed)
 
                 self.expected_data[fan_data.name] = [
+                    'PSU{}'.format(index),
                     fan_data.name,
                     '{}RPM'.format(fan_data.mocked_speed),
                     NOT_AVAILABLE,
