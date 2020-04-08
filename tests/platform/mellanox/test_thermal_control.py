@@ -28,7 +28,7 @@ def test_dynamic_minimum_table(testbed_devices, mocker_factory):
     dut = testbed_devices['dut']
     cooling_cur_state = get_cooling_cur_state(dut)
     if cooling_cur_state >= COOLING_CUR_STATE_THRESHOLD:
-        pytest.skip('The SKU {} does not support this test case.'.format(hwsku))
+        pytest.skip('The cooling level {} is higher than threshold {}.'.format(cooling_cur_state, COOLING_CUR_STATE_THRESHOLD))
 
     mocker = mocker_factory(dut, 'MinTableMocker')
     loganalyzer = LogAnalyzer(ansible_host=dut, marker_prefix='thermal_control')
