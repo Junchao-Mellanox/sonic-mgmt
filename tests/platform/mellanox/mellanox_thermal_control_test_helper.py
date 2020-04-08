@@ -885,6 +885,7 @@ class AbnormalFanMocker(SingleFanMocker):
 
         for fan_data in self.fan_data_list:
             try:
+                fan_data.mock_status(0)
                 fan_data.mock_speed(AbnormalFanMocker.TARGET_SPEED_VALUE)
                 fan_data.mock_target_speed(AbnormalFanMocker.TARGET_SPEED_VALUE)
             except SysfsNotExistError as e:
@@ -895,6 +896,7 @@ class AbnormalFanMocker(SingleFanMocker):
         Change the mocked FAN status to 'Present' and normal speed.
         :return:
         """
+        self.mock_status(0)
         self.mock_presence()
         self.mock_normal_speed()
 
