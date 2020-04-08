@@ -32,10 +32,14 @@ THERMAL_POLICY_INVALID_VALUE_FILE = 'invalid_value_policy.json'
 LOG_EXPECT_POLICY_FILE_INVALID = '.*Caught exception while initializing thermal manager.*'
 LOG_EXPECT_FAN_REMOVE_RE = '.*Fan removed warning:.*'
 LOG_EXPECT_FAN_REMOVE_CLEAR_RE = '.*Fan removed warning cleared:.*'
-LOG_EXPECT_FAN_UNDER_SPEED_RE = '.*Fan under speed warning:.*'
-LOG_EXPECT_FAN_UNDER_SPEED_CLEAR_RE = '.*Fan under speed warning cleared:.*'
-LOG_EXPECT_FAN_OVER_SPEED_RE = '.*Fan over speed warning:*'
-LOG_EXPECT_FAN_OVER_SPEED_CLEAR_RE = '.*Fan over speed warning cleared:.*'
+LOG_EXPECT_FAN_FAULT_RE = '.*FAN fault warning:.*'
+LOG_EXPECT_FAN_FAULT_CLEAR_RE = '.*Fan fault warning cleared:.*'
+LOG_EXPECT_FAN_UNDER_SPEED_RE = '.*Fan low speed warning:.*'
+LOG_EXPECT_FAN_UNDER_SPEED_CLEAR_RE = '.*Fan low speed warning cleared:.*'
+LOG_EXPECT_FAN_OVER_SPEED_RE = '.*Fan high speed warning:*'
+LOG_EXPECT_FAN_OVER_SPEED_CLEAR_RE = '.*Fan high speed warning cleared:.*'
+LOG_EXPECT_INSUFFICIENT_FAN_NUM_RE = '.*Insufficient number of working FANs warning:.*'
+LOG_EXPECT_INSUFFICIENT_FAN_NUM_CLEAR_RE = '.*Insufficient number of working FANs warning cleared:.*'
 
 
 def check_sensord_status(ans_host):
@@ -525,18 +529,30 @@ def test_thermal_control_fan_status(testbed_devices, mocker_factory):
         time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
         if single_fan_mocker.is_fan_removable():
-            loganalyzer.expect_regex = [LOG_EXPECT_FAN_REMOVE_RE]
+            loganalyzer.expect_regex = [LOG_EXPECT_FAN_REMOVE_RE, LOG_EXPECT_INSUFFICIENT_FAN_NUM_RE]
             with loganalyzer:
                 logging.info('Mocking an absence FAN...')
                 single_fan_mocker.mock_absence()
                 check_cli_output_with_mocker(dut, single_fan_mocker, CMD_PLATFORM_FANSTATUS, THERMAL_CONTROL_TEST_WAIT_TIME)
 
-            loganalyzer.expect_regex = [LOG_EXPECT_FAN_REMOVE_CLEAR_RE]
+            loganalyzer.expect_regex = [LOG_EXPECT_FAN_REMOVE_CLEAR_RE, LOG_EXPECT_INSUFFICIENT_FAN_NUM_CLEAR_RE]
             with loganalyzer:
                 logging.info('Make the absence FAN back to presence...')
                 single_fan_mocker.mock_presence()
                 check_cli_output_with_mocker(dut, single_fan_mocker, CMD_PLATFORM_FANSTATUS, THERMAL_CONTROL_TEST_WAIT_TIME)
 
+        loganalyzer.expect_regex = [LOG_EXPECT_FAN_FAULT_RE]
+        with loganalyzer:
+            logging.info('Mocking a fault FAN...')
+            single_fan_mocker.mock_status(False)
+            check_cli_output_with_mocker(dut, single_fan_mocker, CMD_PLATFORM_FANSTATUS, THERMAL_CONTROL_TEST_WAIT_TIME)
+
+        loganalyzer.expect_regex = [LOG_EXPECT_FAN_FAULT_CLEAR_RE]
+        with loganalyzer:
+            logging.info('Mocking the fault FAN back to normal...')
+            single_fan_mocker.mock_status(True)
+            check_cli_output_with_mocker(dut, single_fan_mocker, CMD_PLATFORM_FANSTATUS, THERMAL_CONTROL_TEST_WAIT_TIME)
+        
         loganalyzer.expect_regex = [LOG_EXPECT_FAN_OVER_SPEED_RE]
         with loganalyzer:
             logging.info('Mocking an over speed FAN...')

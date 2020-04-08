@@ -174,6 +174,14 @@ class SingleFanMocker(BaseMocker):
         """
         pass
 
+    def mock_status(self, status):
+        """
+        Change the mocked FAN status to good or bad
+        :param status: bool value indicate the target status of the FAN.
+        :return:
+        """
+        pass
+
     def mock_normal_speed(self):
         """
         Change the mocked FAN speed to a normal value.
