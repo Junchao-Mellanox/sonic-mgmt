@@ -309,7 +309,7 @@ def test_show_platform_syseeprom(testbed_devices):
 def check_show_platform_fanstatus_output(lines):
     """
     @summary: Check basic output of 'show platform fan'. Expect output are:
-              "Fan Not detected" or a table of fan status data with 6 columns.
+              "Fan Not detected" or a table of fan status data with 7 columns.
     """
     assert len(lines) > 0, 'There must be at least one line output for show platform fans'
     if len(lines) == 1:
@@ -318,7 +318,7 @@ def check_show_platform_fanstatus_output(lines):
         assert len(lines) > 2, 'There must be at least two lines output for show platform fans if any FAN is detected'
         second_line = lines[1]
         field_ranges = get_field_range(second_line)
-        assert len(field_ranges) == 6, 'There must be 6 columns in output of show platform fans'
+        assert len(field_ranges) == 7, 'There must be 7 columns in output of show platform fans'
 
 
 def test_show_platform_fanstatus(testbed_devices, mocker_factory):
