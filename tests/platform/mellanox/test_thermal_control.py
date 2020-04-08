@@ -13,6 +13,7 @@ THERMAL_CONTROL_TEST_WAIT_TIME = 65
 THERMAL_CONTROL_TEST_CHECK_INTERVAL = 5
 
 COOLING_CUR_STATE_PATH = '/run/hw-management/thermal/cooling_cur_state'
+COOLING_CUR_STATE_THRESHOLD = 7
 PSU_PRESENCE_PATH = '/run/hw-management/thermal/psu{}_status'
 PSU_SPEED_PATH = '/run/hw-management/thermal/psu{}_fan1_speed_get'
 PSU_SPEED_TOLERANCE = 0.25
@@ -25,6 +26,10 @@ def test_dynamic_minimum_table(testbed_devices, mocker_factory):
     air_flow_dirs = ['p2c', 'c2p', 'unk']
     max_temperature = 45000 # 45 C
     dut = testbed_devices['dut']
+    cooling_cur_state = get_cooling_cur_state(dut)
+    if cooling_cur_state >= COOLING_CUR_STATE_THRESHOLD:
+        pytest.skip('The SKU {} does not support this test case.'.format(hwsku))
+
     mocker = mocker_factory(dut, 'MinTableMocker')
     loganalyzer = LogAnalyzer(ansible_host=dut, marker_prefix='thermal_control')
     loganalyzer.load_common_config()
