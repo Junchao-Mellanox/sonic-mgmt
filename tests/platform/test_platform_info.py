@@ -32,14 +32,14 @@ THERMAL_POLICY_INVALID_VALUE_FILE = 'invalid_value_policy.json'
 LOG_EXPECT_POLICY_FILE_INVALID = '.*Caught exception while initializing thermal manager.*'
 LOG_EXPECT_FAN_REMOVE_RE = '.*Fan removed warning:.*'
 LOG_EXPECT_FAN_REMOVE_CLEAR_RE = '.*Fan removed warning cleared:.*'
-LOG_EXPECT_FAN_FAULT_RE = '.*FAN fault warning:.*'
+LOG_EXPECT_FAN_FAULT_RE = '.*Fan fault warning:.*'
 LOG_EXPECT_FAN_FAULT_CLEAR_RE = '.*Fan fault warning cleared:.*'
 LOG_EXPECT_FAN_UNDER_SPEED_RE = '.*Fan low speed warning:.*'
 LOG_EXPECT_FAN_UNDER_SPEED_CLEAR_RE = '.*Fan low speed warning cleared:.*'
 LOG_EXPECT_FAN_OVER_SPEED_RE = '.*Fan high speed warning:*'
 LOG_EXPECT_FAN_OVER_SPEED_CLEAR_RE = '.*Fan high speed warning cleared:.*'
-LOG_EXPECT_INSUFFICIENT_FAN_NUM_RE = '.*Insufficient number of working FANs warning:.*'
-LOG_EXPECT_INSUFFICIENT_FAN_NUM_CLEAR_RE = '.*Insufficient number of working FANs warning cleared:.*'
+LOG_EXPECT_INSUFFICIENT_FAN_NUM_RE = '.*Insufficient number of working fans warning:.*'
+LOG_EXPECT_INSUFFICIENT_FAN_NUM_CLEAR_RE = '.*Insufficient number of working fans warning cleared:.*'
 
 
 def check_sensord_status(ans_host):
