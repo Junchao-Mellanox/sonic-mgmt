@@ -23,7 +23,6 @@ LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE = '.*Changed minimum cooling level to {}.
 
 @pytest.mark.disable_loganalyzer
 def test_dynamic_minimum_table(testbed_devices, mocker_factory):
-    air_flow_dirs = ['p2c', 'c2p', 'unk']
     max_temperature = 45000 # 45 C
     dut = testbed_devices['dut']
     cooling_cur_state = get_cooling_cur_state(dut)
@@ -34,26 +33,22 @@ def test_dynamic_minimum_table(testbed_devices, mocker_factory):
     loganalyzer = LogAnalyzer(ansible_host=dut, marker_prefix='thermal_control')
     loganalyzer.load_common_config()
 
-    for index in range(len(air_flow_dirs)):
-        air_flow_index = random.randint(0, len(air_flow_dirs) - 1)
-        air_flow_dir = air_flow_dirs[air_flow_index]
-        air_flow_dirs.remove(air_flow_dir)
-        temperature = random.randint(0, max_temperature)
-        trust_state = True if random.randint(0, 1) else False
-        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, trust_state))
-        expect_minimum_cooling_level = mocker.get_expect_cooling_level(air_flow_dir, temperature, trust_state)
-        loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
-        with loganalyzer:
-            mocker.mock_min_table(air_flow_dir, temperature, trust_state)
-            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
+    temperature = random.randint(0, max_temperature)
+    trust_state = True if random.randint(0, 1) else False
+    logging.info('Testing with temperature={}, trust_state={}'.format(temperature, trust_state))
+    expect_minimum_cooling_level = mocker.get_expect_cooling_level(temperature, trust_state)
+    loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
+    with loganalyzer:
+        mocker.mock_min_table(temperature, trust_state)
+        time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
-        temperature = random.randint(0, max_temperature)
-        logging.info('Testing with air_flow_dir={}, temperature={}, trust_state={}'.format(air_flow_dir, temperature, not trust_state))
-        expect_minimum_cooling_level = mocker.get_expect_cooling_level(air_flow_dir, temperature, not trust_state)
-        loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
-        with loganalyzer:
-            mocker.mock_min_table(air_flow_dir, temperature, not trust_state)
-            time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
+    temperature = random.randint(0, max_temperature)
+    logging.info('Testing with temperature={}, trust_state={}'.format(temperature, not trust_state))
+    expect_minimum_cooling_level = mocker.get_expect_cooling_level(temperature, not trust_state)
+    loganalyzer.expect_regex = [LOG_EXPECT_CHANGE_MIN_COOLING_LEVEL_RE.format(expect_minimum_cooling_level)]
+    with loganalyzer:
+        mocker.mock_min_table(temperature, not trust_state)
+        time.sleep(THERMAL_CONTROL_TEST_WAIT_TIME)
 
 
 @pytest.mark.disable_loganalyzer
