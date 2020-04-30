@@ -910,7 +910,7 @@ class MinTableMocker(object):
     def __init__(self, dut):
         self.mock_helper = MockerHelper(dut)
 
-    def get_expect_cooling_level(self, air_flow_dir, temperature, trust_state):
+    def get_expect_cooling_level(self, temperature, trust_state):
         plat_name = self.mock_helper.dut.facts["platform"]
         minimum_table = MINIMUM_TABLE[plat_name]
         row = minimum_table['unk_{}'.format('trust' if trust_state else 'untrust')]
