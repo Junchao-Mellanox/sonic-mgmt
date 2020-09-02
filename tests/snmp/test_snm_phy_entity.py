@@ -12,21 +12,22 @@ pytestmark = [
 STATE_DB = 6
 TABLE_NAME_SEPARATOR_VBAR = '|'
 
+# From RFC 2737, 1 means replaceable, 2 means not replaceable
 REPLACEABLE = 1
 NOT_REPLACEABLE = 2
 
 # Physical Class From RFC 2737
-PHYSICAL_CLASS_OTHER       = 1
-PHYSICAL_CLASS_UNKNOWN     = 2
-PHYSICAL_CLASS_CHASSIS     = 3
-PHYSICAL_CLASS_BACKPLANE   = 4
-PHYSICAL_CLASS_CONTAINER   = 5
+PHYSICAL_CLASS_OTHER = 1
+PHYSICAL_CLASS_UNKNOWN = 2
+PHYSICAL_CLASS_CHASSIS = 3
+PHYSICAL_CLASS_BACKPLANE = 4
+PHYSICAL_CLASS_CONTAINER = 5
 PHYSICAL_CLASS_POWERSUPPLY = 6
-PHYSICAL_CLASS_FAN         = 7
-PHYSICAL_CLASS_SENSOR      = 8
-PHYSICAL_CLASS_MODULE      = 9
-PHYSICAL_CLASS_PORT        = 10
-PHYSICAL_CLASS_STACK       = 11
+PHYSICAL_CLASS_FAN = 7
+PHYSICAL_CLASS_SENSOR = 8
+PHYSICAL_CLASS_MODULE = 9
+PHYSICAL_CLASS_PORT = 10
+PHYSICAL_CLASS_STACK = 11
 
 # Chassis Constants
 CHASSIS_OID = 1
@@ -57,6 +58,10 @@ PSU_SENSOR_INFO = {
     'voltage': ('Voltage', 4),
 }
 
+# Thermal Constants
+THERMAL_KEY_TEMPLATE = 'TEMPERATURE_INFO|{}'
+
+# Physical Entity Constants
 PHYSICAL_ENTITY_KEY_TEMPLATE = 'PHYSICAL_ENTITY_INFO|{}'
 
 # Transceiver Constants
@@ -68,6 +73,17 @@ XCVR_SENSOR_OID_LIST = [1, 2, 11, 21, 31, 41, 12, 22, 32, 42, 13, 23, 33, 43]
 @pytest.fixture(scope="module")
 def snmp_physical_entity_info(duthost, localhost, creds):
     """
+    Module level fixture for getting physical entity information from snmp fact
+    :param duthost: DUT host object
+    :param localhost: localhost object
+    :param creds: Credential for snmp
+    :return:
+    """
+    return get_entity_mib(duthost, localhost, creds)
+
+
+def get_entity_mib(duthost, localhost, creds):
+    """
     Get physical entity information from snmp fact
     :param duthost: DUT host object
     :param localhost: localhost object
@@ -76,7 +92,10 @@ def snmp_physical_entity_info(duthost, localhost, creds):
     """
     hostip = duthost.host.options['inventory_manager'].get_host(duthost.hostname).vars['ansible_host']
     snmp_facts = localhost.snmp_facts(host=hostip, version="v2c", community=creds["snmp_rocommunity"])['ansible_facts']
-    return snmp_facts['snmp_physical_entities']
+    entity_mib = {}
+    for oid, info in snmp_facts['snmp_physical_entities'].items():
+        entity_mib[int(oid)] = info
+    return entity_mib
 
 
 def test_fan_drawer_info(duthost, snmp_physical_entity_info):
@@ -107,10 +126,12 @@ def test_fan_drawer_info(duthost, snmp_physical_entity_info):
         assert drawer_snmp_fact['entPhysHwVer'] == ''
         assert drawer_snmp_fact['entPhysFwVer'] == ''
         assert drawer_snmp_fact['entPhysSwVer'] == ''
-        assert drawer_snmp_fact['entPhysSerialNum'] == '' if is_null_str(drawer_info['serial']) else drawer_info['serial']
+        assert drawer_snmp_fact['entPhysSerialNum'] == '' if is_null_str(drawer_info['serial']) else drawer_info[
+            'serial']
         assert drawer_snmp_fact['entPhysMfgName'] == ''
         assert drawer_snmp_fact['entPhysModelName'] == '' if is_null_str(drawer_info['model']) else drawer_info['model']
-        assert drawer_snmp_fact['entPhysIsFRU'] == REPLACEABLE if entity_info['is_replaceable'] == 'True' else NOT_REPLACEABLE
+        assert drawer_snmp_fact['entPhysIsFRU'] == REPLACEABLE if drawer_info[
+                                                                      'is_replaceable'] == 'True' else NOT_REPLACEABLE
 
 
 def test_fan_info(duthost, snmp_physical_entity_info):
@@ -131,17 +152,19 @@ def test_fan_info(duthost, snmp_physical_entity_info):
         position = int(entity_info['position_in_parent'])
         parent_name = entity_info['parent_name']
         if parent_name == CHASSIS_KEY:
-            drawer_position = position
+            parent_oid = FAN_DRAWER_BASE_SUB_ID + position * FAN_DRAWER_POSITION_MULTIPLE
         else:
-            drawer_name = fan_info['drawer_name']
-            drawer_entity_info = redis_hgetall(duthost, STATE_DB, PHYSICAL_ENTITY_KEY_TEMPLATE.format(drawer_name))
-            drawer_position = int(drawer_entity_info['position_in_parent'])
-        drawer_oid = FAN_DRAWER_BASE_SUB_ID + drawer_position * FAN_DRAWER_POSITION_MULTIPLE
-        expect_oid = drawer_oid + position * FAN_POSITION_MULTIPLE
+            parent_entity_info = redis_hgetall(duthost, STATE_DB, PHYSICAL_ENTITY_KEY_TEMPLATE.format(parent_name))
+            parent_position = int(parent_entity_info['position_in_parent'])
+            if 'PSU' in parent_name:
+                parent_oid = PSU_BASE_SUB_ID + parent_position * PSU_POSITION_MULTIPLE
+            else:
+                parent_oid = FAN_DRAWER_BASE_SUB_ID + parent_position * FAN_DRAWER_POSITION_MULTIPLE
+        expect_oid = parent_oid + position * FAN_POSITION_MULTIPLE
         assert expect_oid in snmp_physical_entity_info, 'Cannot find fan {} in physical entity mib'.format(name)
         fan_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert fan_snmp_fact['entPhysDescr'] == name
-        assert fan_snmp_fact['entPhysContainedIn'] == CHASSIS_OID if parent_name == CHASSIS_KEY else drawer_oid
+        assert fan_snmp_fact['entPhysContainedIn'] == CHASSIS_OID if parent_name == CHASSIS_KEY else parent_oid
         assert fan_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_FAN
         assert fan_snmp_fact['entPhyParentRelPos'] == position
         assert fan_snmp_fact['entPhysName'] == name
@@ -152,8 +175,8 @@ def test_fan_info(duthost, snmp_physical_entity_info):
             'serial']
         assert fan_snmp_fact['entPhysMfgName'] == ''
         assert fan_snmp_fact['entPhysModelName'] == '' if is_null_str(fan_info['model']) else fan_info['model']
-        assert fan_snmp_fact['entPhysIsFRU'] == REPLACEABLE if entity_info[
-                                                                      'is_replaceable'] == 'True' else NOT_REPLACEABLE
+        assert fan_snmp_fact['entPhysIsFRU'] == REPLACEABLE if fan_info[
+                                                                   'is_replaceable'] == 'True' else NOT_REPLACEABLE
 
         if not is_null_str(fan_info['speed']):
             tachometers_oid = expect_oid + FAN_TACHOMETERS_OFFSET
@@ -208,7 +231,7 @@ def test_psu_info(duthost, snmp_physical_entity_info):
             'serial']
         assert psu_snmp_fact['entPhysMfgName'] == ''
         assert psu_snmp_fact['entPhysModelName'] == '' if is_null_str(psu_info['model']) else psu_info['model']
-        assert psu_snmp_fact['entPhysIsFRU'] == REPLACEABLE if entity_info[
+        assert psu_snmp_fact['entPhysIsFRU'] == REPLACEABLE if psu_info[
                                                                    'is_replaceable'] == 'True' else NOT_REPLACEABLE
 
         _check_psu_sensor(name, psu_info, expect_oid, snmp_physical_entity_info)
@@ -252,7 +275,7 @@ def test_thermal_info(duthost, snmp_physical_entity_info):
     :param snmp_physical_entity_info: Physical entity information from snmp fact
     :return:
     """
-    keys = redis_get_keys(duthost, STATE_DB, PSU_KEY_TEMPLATE.format('*'))
+    keys = redis_get_keys(duthost, STATE_DB, THERMAL_KEY_TEMPLATE.format('*'))
     if not keys:
         pytest.skip('Thermal information not exists in DB, skipping this test')
     for key in keys:
@@ -266,7 +289,7 @@ def test_thermal_info(duthost, snmp_physical_entity_info):
         assert expect_oid in snmp_physical_entity_info, 'Cannot find thermal {} in physical entity mib'.format(name)
         thermal_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert thermal_snmp_fact['entPhysDescr'] == name
-        assert thermal_snmp_fact['entPhysContainedIn'] == CHASSIS_OID
+        assert thermal_snmp_fact['entPhysContainedIn'] == CHASSIS_MGMT_OID
         assert thermal_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_SENSOR
         assert thermal_snmp_fact['entPhyParentRelPos'] == position
         assert thermal_snmp_fact['entPhysName'] == name
@@ -311,7 +334,7 @@ def test_transceiver_info(duthost, snmp_physical_entity_info):
         assert transceiver_snmp_fact['entPhysMfgName'] == transceiver_info['manufacturer']
         assert transceiver_snmp_fact['entPhysModelName'] == transceiver_info['model']
         assert transceiver_snmp_fact['entPhysIsFRU'] == REPLACEABLE if transceiver_info[
-                                                                   'is_replaceable'] == 'True' else NOT_REPLACEABLE
+                                                                           'is_replaceable'] == 'True' else NOT_REPLACEABLE
         _check_transceiver_dom_sensor_info(transceiver_snmp_fact['oid'], snmp_physical_entity_info)
 
 
@@ -368,12 +391,11 @@ def test_turn_off_psu_and_check_psu_info(duthost, localhost, creds, psu_controll
     # turn off the first PSU
     first_psu_id = psu_status[0]['psu_id']
     psu_controller.turn_off_psu(first_psu_id)
-    wait_until(30, 5, check_psu_status, psu_controller, first_psu_id, False)
+    assert wait_until(30, 5, check_psu_status, psu_controller, first_psu_id, False)
     # wait for psud update the database
     time.sleep(5)
-    hostip = duthost.host.options['inventory_manager'].get_host(duthost.hostname).vars['ansible_host']
-    snmp_facts = localhost.snmp_facts(host=hostip, version="v2c", community=creds["snmp_rocommunity"])['ansible_facts']
-    mib_info = snmp_facts['snmp_physical_entities']
+
+    mib_info = get_entity_mib(duthost, localhost, creds)
     keys = redis_get_keys(duthost, STATE_DB, PSU_KEY_TEMPLATE.format('*'))
     for key in keys:
         psu_info = redis_hgetall(duthost, STATE_DB, key)
@@ -398,7 +420,7 @@ def redis_get_keys(duthost, db_id, pattern):
     :return: A list of key name in string
     """
     cmd = 'redis-cli --raw -n {} KEYS \"{}\"'.format(db_id, pattern)
-    logging.info('Getting keys from redis by command: {}'.format(cmd))
+    logging.debug('Getting keys from redis by command: {}'.format(cmd))
     output = duthost.shell(cmd)
     content = output['stdout'].strip()
     return content.split('\n')
@@ -413,7 +435,7 @@ def redis_hgetall(duthost, db_id, key):
     :return: A dictionary, key is field name, value is field value
     """
     cmd = 'redis-cli --raw -n {} HGETALL \"{}\"'.format(db_id, key)
-    logging.info('HGETALL from redis by command: {}'.format(cmd))
+    logging.debug('HGETALL from redis by command: {}'.format(cmd))
     output = duthost.shell(cmd)
     content = output['stdout'].strip()
     result = {}
@@ -421,7 +443,7 @@ def redis_hgetall(duthost, db_id, key):
         lines = content.split('\n')
         i = 0
         while i < len(lines):
-            result[lines[i]] = result[lines[i+1]]
+            result[lines[i]] = lines[i + 1]
             i += 2
     return result
 
@@ -444,4 +466,4 @@ def check_psu_status(psu_controller, psu_id, expect_status):
     :return: True if a given PSU is at expect status
     """
     status = psu_controller.get_psu_status(psu_id)
-    return 'psu_on' in status and status['psu_on'] == expect_status
+    return 'psu_on' in status[0] and status[0]['psu_on'] == expect_status

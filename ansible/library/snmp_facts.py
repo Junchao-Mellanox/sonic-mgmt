@@ -143,7 +143,7 @@ class DefineOid(object):
 
         # From entity table MIB
         self.entPhysDescr       = dp + "1.3.6.1.2.1.47.1.1.1.1.2"
-        self.entPhysContainedIn = dp + "1.3.6.1.2.1.47.1.1.1.1.3"
+        self.entPhysContainedIn = dp + "1.3.6.1.2.1.47.1.1.1.1.4"
         self.entPhysClass       = dp + "1.3.6.1.2.1.47.1.1.1.1.5"
         self.entPhyParentRelPos = dp + "1.3.6.1.2.1.47.1.1.1.1.6"
         self.entPhysName        = dp + "1.3.6.1.2.1.47.1.1.1.1.7"
