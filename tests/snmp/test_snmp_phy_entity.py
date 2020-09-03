@@ -436,7 +436,7 @@ def redis_get_keys(duthost, db_id, pattern):
     logging.debug('Getting keys from redis by command: {}'.format(cmd))
     output = duthost.shell(cmd)
     content = output['stdout'].strip()
-    return content.split('\n')
+    return content.split('\n') if content else None
 
 
 def redis_hgetall(duthost, db_id, key):
