@@ -447,17 +447,31 @@ def redis_hgetall(duthost, db_id, key):
     :param key: Redis Key
     :return: A dictionary, key is field name, value is field value
     """
-    cmd = 'redis-cli --raw -n {} HGETALL \"{}\"'.format(db_id, key)
-    logging.debug('HGETALL from redis by command: {}'.format(cmd))
+    result = {}
+    cmd = 'redis-cli -n {} HKEYS \"{}\"'.format(db_id, key)
     output = duthost.shell(cmd)
     content = output['stdout'].strip()
-    result = {}
+    if not content:
+        return result
+
+    field_names = content.split('\n')
+
+    cmd = 'redis-cli -n {} HGETALL \"{}\"'.format(db_id, key)
+    output = duthost.shell(cmd)
+    content = output['stdout'].strip()
+
     if content:
-        lines = content.split('\n')
         i = 0
-        while i < len(lines):
-            result[lines[i]] = lines[i + 1]
-            i += 2
+        pos = 0
+        field_count = len(field_names)
+        while i + 1 < field_count:
+            end = content.find(field_names[i + 1], pos)
+            value = content[pos + len(field_names[i]):end]
+            result[field_names[i].strip()] = value.strip()
+            i += 1
+            pos = end
+        result[field_names[i].strip()] = content[pos + len(field_names[i]):].strip()
+
     return result
 
 
