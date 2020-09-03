@@ -393,10 +393,20 @@ def test_turn_off_psu_and_check_psu_info(duthost, localhost, creds, psu_controll
     psu_controller.turn_off_psu(first_psu_id)
     assert wait_until(30, 5, check_psu_status, psu_controller, first_psu_id, False)
     # wait for psud update the database
-    time.sleep(5)
+    assert wait_until(120, 20, _check_psu_status_after_power_off, duthost, localhost, creds)
 
+
+def _check_psu_status_after_power_off(duthost, localhost, creds):
+    """
+    Check that at least one PSU is powered off and its sensor information should be removed from mib
+    :param duthost: DUT host object
+    :param localhost: localhost object
+    :param creds: Credential for snmp
+    :return: True if sensor information is removed from mib
+    """
     mib_info = get_entity_mib(duthost, localhost, creds)
     keys = redis_get_keys(duthost, STATE_DB, PSU_KEY_TEMPLATE.format('*'))
+    power_off_psu_found = False
     for key in keys:
         psu_info = redis_hgetall(duthost, STATE_DB, key)
         name = key.split(TABLE_NAME_SEPARATOR_VBAR)[-1]
@@ -408,7 +418,10 @@ def test_turn_off_psu_and_check_psu_info(duthost, localhost, creds, psu_controll
             assert expect_oid in mib_info
             for field, sensor_tuple in PSU_SENSOR_INFO.items():
                 sensor_oid = expect_oid + sensor_tuple[1] * PSU_SENSOR_MULTIPLE
-                assert sensor_oid not in mib_info
+                if sensor_oid not in mib_info:
+                    power_off_psu_found = True
+                    break
+    return power_off_psu_found
 
 
 def redis_get_keys(duthost, db_id, pattern):
