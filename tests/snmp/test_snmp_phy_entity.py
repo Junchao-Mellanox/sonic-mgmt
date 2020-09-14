@@ -306,6 +306,9 @@ def test_thermal_info(duthost, snmp_physical_entity_info):
     if not keys:
         pytest.skip('Thermal information not exists in DB, skipping this test')
     for key in keys:
+        thermal_info = redis_hgetall(duthost, STATE_DB, key)
+        if is_null_str(thermal_info['temperature']):
+            continue
         name = key.split(TABLE_NAME_SEPARATOR_VBAR)[-1]
         entity_info_key = PHYSICAL_ENTITY_KEY_TEMPLATE.format(name)
         entity_info = redis_hgetall(duthost, STATE_DB, entity_info_key)
