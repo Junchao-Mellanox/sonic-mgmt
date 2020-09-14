@@ -29,45 +29,72 @@ PHYSICAL_CLASS_MODULE = 9
 PHYSICAL_CLASS_PORT = 10
 PHYSICAL_CLASS_STACK = 11
 
-# Chassis Constants
-CHASSIS_OID = 1
-CHASSIS_MGMT_OID = 200000000
-CHASSIS_THERMAL_OFFSET = 100000
-CHASSIS_KEY = 'chassis 1'
+# OID generating rule definition
+# Moduel Type Definition
+MODULE_TYPE_MULTIPLE = 100000000
+MODULE_INDEX_MULTIPLE = 1000000
+MODULE_TYPE_MGMT = 2 * MODULE_TYPE_MULTIPLE
+MODULE_TYPE_FAN_DRAWER = 5 * MODULE_TYPE_MULTIPLE
+MODULE_TYPE_PSU = 6 * MODULE_TYPE_MULTIPLE
+MODULE_TYPE_PORT = 1000000000
 
-# Fan Drawer Constants
-FAN_DRAWER_KEY_TEMPLATE = 'FAN_DRAWER_INFO|{}'
-FAN_DRAWER_BASE_SUB_ID = 500000000
-FAN_DRAWER_POSITION_MULTIPLE = 1000000
+# Device Type Definition
+DEVICE_TYPE_MULTIPLE = 10000
+DEVICE_INDEX_MULTIPLE = 100
+DEVICE_TYPE_PS = 1 * DEVICE_TYPE_MULTIPLE
+DEVICE_TYPE_FAN = 2 * DEVICE_TYPE_MULTIPLE
+DEVICE_TYPE_CHASSIS_THERMAL = 99 * DEVICE_TYPE_MULTIPLE
+DEVICE_TYPE_POWER_MONITOR = 24 * DEVICE_TYPE_MULTIPLE
 
-# Fan Constants
-FAN_KEY_TEMPLATE = 'FAN_INFO|{}'
-FAN_POSITION_MULTIPLE = 20020
-FAN_TACHOMETERS_OFFSET = 10000
+# Sensor Type Definition
+SENSOR_TYPE_MULTIPLE = 10
+SENSOR_TYPE_TEMP = 1 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_FAN = 2 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_POWER = 3 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_CURRENT = 4 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_VOLTAGE = 5 * SENSOR_TYPE_MULTIPLE
 
-# PSU Constants
-PSU_KEY_TEMPLATE = 'PSU_INFO|{}'
-PSU_BASE_SUB_ID = 600000000
-PSU_POSITION_MULTIPLE = 1000000
-PSU_SENSOR_MULTIPLE = 1000
+# Port entPhysicalIndex Definition
+PORT_IFINDEX_MULTIPLE = 100
+SENSOR_TYPE_PORT_TX_POWER = 2 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_PORT_RX_POWER = 3 * SENSOR_TYPE_MULTIPLE
+SENSOR_TYPE_PORT_TX_BIAS = 4 * SENSOR_TYPE_MULTIPLE
+
+CHASSIS_SUB_ID = 1
+CHASSIS_MGMT_SUB_ID = MODULE_TYPE_MGMT
+
 # field_name : (name, position)
 PSU_SENSOR_INFO = {
-    'temp': ('Temperature', 1),
-    'power': ('Power', 2),
-    'current': ('Current', 3),
-    'voltage': ('Voltage', 4),
+    'temp': ('Temperature', 1, SENSOR_TYPE_TEMP),
+    'power': ('Power', 2, SENSOR_TYPE_POWER),
+    'current': ('Current', 3, SENSOR_TYPE_CURRENT),
+    'voltage': ('Voltage', 4, SENSOR_TYPE_VOLTAGE),
 }
 
-# Thermal Constants
+XCVR_SENSOR_OID_LIST = [SENSOR_TYPE_TEMP,
+                        SENSOR_TYPE_VOLTAGE,
+                        SENSOR_TYPE_PORT_RX_POWER + 1,
+                        SENSOR_TYPE_PORT_RX_POWER + 2,
+                        SENSOR_TYPE_PORT_RX_POWER + 3,
+                        SENSOR_TYPE_PORT_RX_POWER + 4,
+                        SENSOR_TYPE_PORT_TX_BIAS + 1,
+                        SENSOR_TYPE_PORT_TX_BIAS + 2,
+                        SENSOR_TYPE_PORT_TX_BIAS + 3,
+                        SENSOR_TYPE_PORT_TX_BIAS + 4,
+                        SENSOR_TYPE_PORT_TX_POWER + 1,
+                        SENSOR_TYPE_PORT_TX_POWER + 2,
+                        SENSOR_TYPE_PORT_TX_POWER + 3,
+                        SENSOR_TYPE_PORT_TX_POWER + 4]
+
+# Redis Constants
+CHASSIS_KEY = 'chassis 1'
+FAN_DRAWER_KEY_TEMPLATE = 'FAN_DRAWER_INFO|{}'
+FAN_KEY_TEMPLATE = 'FAN_INFO|{}'
+PSU_KEY_TEMPLATE = 'PSU_INFO|{}'
 THERMAL_KEY_TEMPLATE = 'TEMPERATURE_INFO|{}'
-
-# Physical Entity Constants
 PHYSICAL_ENTITY_KEY_TEMPLATE = 'PHYSICAL_ENTITY_INFO|{}'
-
-# Transceiver Constants
 XCVR_KEY_TEMPLATE = 'TRANSCEIVER_INFO|{}'
 XCVR_DOM_KEY_TEMPLATE = 'TRANSCEIVER_DOM_SENSOR|{}'
-XCVR_SENSOR_OID_LIST = [1, 2, 11, 21, 31, 41, 12, 22, 32, 42, 13, 23, 33, 43]
 
 
 @pytest.fixture(scope="module")
@@ -114,12 +141,12 @@ def test_fan_drawer_info(duthost, snmp_physical_entity_info):
         entity_info_key = PHYSICAL_ENTITY_KEY_TEMPLATE.format(name)
         entity_info = redis_hgetall(duthost, STATE_DB, entity_info_key)
         position = int(entity_info['position_in_parent'])
-        expect_oid = FAN_DRAWER_BASE_SUB_ID + position * FAN_DRAWER_POSITION_MULTIPLE
+        expect_oid = MODULE_TYPE_FAN_DRAWER + position * MODULE_INDEX_MULTIPLE
         assert expect_oid in snmp_physical_entity_info, 'Cannot find fan drawer {} in physical entity mib'.format(name)
 
         drawer_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert drawer_snmp_fact['entPhysDescr'] == name
-        assert drawer_snmp_fact['entPhysContainedIn'] == CHASSIS_OID
+        assert drawer_snmp_fact['entPhysContainedIn'] == CHASSIS_SUB_ID
         assert drawer_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_CONTAINER
         assert drawer_snmp_fact['entPhyParentRelPos'] == position
         assert drawer_snmp_fact['entPhysName'] == name
@@ -152,19 +179,19 @@ def test_fan_info(duthost, snmp_physical_entity_info):
         position = int(entity_info['position_in_parent'])
         parent_name = entity_info['parent_name']
         if parent_name == CHASSIS_KEY:
-            parent_oid = FAN_DRAWER_BASE_SUB_ID + position * FAN_DRAWER_POSITION_MULTIPLE
+            parent_oid = MODULE_TYPE_FAN_DRAWER + position * MODULE_INDEX_MULTIPLE
         else:
             parent_entity_info = redis_hgetall(duthost, STATE_DB, PHYSICAL_ENTITY_KEY_TEMPLATE.format(parent_name))
             parent_position = int(parent_entity_info['position_in_parent'])
             if 'PSU' in parent_name:
-                parent_oid = PSU_BASE_SUB_ID + parent_position * PSU_POSITION_MULTIPLE
+                parent_oid = MODULE_TYPE_PSU + parent_position * MODULE_INDEX_MULTIPLE
             else:
-                parent_oid = FAN_DRAWER_BASE_SUB_ID + parent_position * FAN_DRAWER_POSITION_MULTIPLE
-        expect_oid = parent_oid + position * FAN_POSITION_MULTIPLE
+                parent_oid = MODULE_TYPE_FAN_DRAWER + parent_position * MODULE_INDEX_MULTIPLE
+        expect_oid = parent_oid + DEVICE_TYPE_FAN + position * DEVICE_INDEX_MULTIPLE
         assert expect_oid in snmp_physical_entity_info, 'Cannot find fan {} in physical entity mib'.format(name)
         fan_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert fan_snmp_fact['entPhysDescr'] == name
-        assert fan_snmp_fact['entPhysContainedIn'] == CHASSIS_OID if parent_name == CHASSIS_KEY else parent_oid
+        assert fan_snmp_fact['entPhysContainedIn'] == CHASSIS_SUB_ID if parent_name == CHASSIS_KEY else parent_oid
         assert fan_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_FAN
         assert fan_snmp_fact['entPhyParentRelPos'] == position
         assert fan_snmp_fact['entPhysName'] == name
@@ -179,7 +206,7 @@ def test_fan_info(duthost, snmp_physical_entity_info):
                                                                    'is_replaceable'] == 'True' else NOT_REPLACEABLE
 
         if not is_null_str(fan_info['speed']):
-            tachometers_oid = expect_oid + FAN_TACHOMETERS_OFFSET
+            tachometers_oid = expect_oid + SENSOR_TYPE_FAN
             assert tachometers_oid in snmp_physical_entity_info, 'Cannot find fan tachometers info in physical entity mib'
             tachometers_fact = snmp_physical_entity_info[tachometers_oid]
             assert tachometers_fact['entPhysDescr'] == 'tachometers for {}'.format(name)
@@ -212,7 +239,7 @@ def test_psu_info(duthost, snmp_physical_entity_info):
         entity_info_key = PHYSICAL_ENTITY_KEY_TEMPLATE.format(name)
         entity_info = redis_hgetall(duthost, STATE_DB, entity_info_key)
         position = int(entity_info['position_in_parent'])
-        expect_oid = PSU_BASE_SUB_ID + position * PSU_POSITION_MULTIPLE
+        expect_oid = MODULE_TYPE_PSU + position * MODULE_INDEX_MULTIPLE
         if psu_info['presence'] != 'true':
             assert expect_oid not in snmp_physical_entity_info
             continue
@@ -220,7 +247,7 @@ def test_psu_info(duthost, snmp_physical_entity_info):
         assert expect_oid in snmp_physical_entity_info, 'Cannot find PSU {} in physical entity mib'.format(name)
         psu_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert psu_snmp_fact['entPhysDescr'] == name
-        assert psu_snmp_fact['entPhysContainedIn'] == CHASSIS_OID
+        assert psu_snmp_fact['entPhysContainedIn'] == CHASSIS_SUB_ID
         assert psu_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_POWERSUPPLY
         assert psu_snmp_fact['entPhyParentRelPos'] == position
         assert psu_snmp_fact['entPhysName'] == name
@@ -247,7 +274,7 @@ def _check_psu_sensor(psu_name, psu_info, psu_oid, snmp_physical_entity_info):
     :return:
     """
     for field, sensor_tuple in PSU_SENSOR_INFO.items():
-        expect_oid = psu_oid + sensor_tuple[1] * PSU_SENSOR_MULTIPLE
+        expect_oid = psu_oid + DEVICE_TYPE_POWER_MONITOR + sensor_tuple[2]
         if is_null_str(psu_info[field]):
             assert expect_oid not in snmp_physical_entity_info
             continue
@@ -285,11 +312,11 @@ def test_thermal_info(duthost, snmp_physical_entity_info):
         if not entity_info or entity_info['parent_name'] != CHASSIS_KEY:
             continue
         position = int(entity_info['position_in_parent'])
-        expect_oid = CHASSIS_MGMT_OID + CHASSIS_THERMAL_OFFSET + position
+        expect_oid = CHASSIS_MGMT_SUB_ID + DEVICE_TYPE_CHASSIS_THERMAL + position * DEVICE_INDEX_MULTIPLE + SENSOR_TYPE_TEMP
         assert expect_oid in snmp_physical_entity_info, 'Cannot find thermal {} in physical entity mib'.format(name)
         thermal_snmp_fact = snmp_physical_entity_info[expect_oid]
         assert thermal_snmp_fact['entPhysDescr'] == name
-        assert thermal_snmp_fact['entPhysContainedIn'] == CHASSIS_MGMT_OID
+        assert thermal_snmp_fact['entPhysContainedIn'] == CHASSIS_MGMT_SUB_ID
         assert thermal_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_SENSOR
         assert thermal_snmp_fact['entPhyParentRelPos'] == position
         assert thermal_snmp_fact['entPhysName'] == name
@@ -323,7 +350,7 @@ def test_transceiver_info(duthost, snmp_physical_entity_info):
         transceiver_info = redis_hgetall(duthost, STATE_DB, key)
         transceiver_snmp_fact = name_to_snmp_facts[name]
         assert transceiver_snmp_fact['entPhysDescr'] is not None
-        assert transceiver_snmp_fact['entPhysContainedIn'] == CHASSIS_OID
+        assert transceiver_snmp_fact['entPhysContainedIn'] == CHASSIS_SUB_ID
         assert transceiver_snmp_fact['entPhysClass'] == PHYSICAL_CLASS_PORT
         assert transceiver_snmp_fact['entPhyParentRelPos'] == -1
         assert transceiver_snmp_fact['entPhysName'] == name
@@ -413,11 +440,11 @@ def _check_psu_status_after_power_off(duthost, localhost, creds):
         entity_info_key = PHYSICAL_ENTITY_KEY_TEMPLATE.format(name)
         entity_info = redis_hgetall(duthost, STATE_DB, entity_info_key)
         position = int(entity_info['position_in_parent'])
-        expect_oid = PSU_BASE_SUB_ID + position * PSU_POSITION_MULTIPLE
+        expect_oid = MODULE_TYPE_PSU + position * MODULE_INDEX_MULTIPLE
         if psu_info['status'] != 'true':
             assert expect_oid in mib_info
             for field, sensor_tuple in PSU_SENSOR_INFO.items():
-                sensor_oid = expect_oid + sensor_tuple[1] * PSU_SENSOR_MULTIPLE
+                sensor_oid = expect_oid + DEVICE_TYPE_POWER_MONITOR + sensor_tuple[2]
                 if sensor_oid not in mib_info:
                     power_off_psu_found = True
                     break
