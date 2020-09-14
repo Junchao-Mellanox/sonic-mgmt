@@ -209,11 +209,11 @@ def test_fan_info(duthost, snmp_physical_entity_info):
             tachometers_oid = expect_oid + SENSOR_TYPE_FAN
             assert tachometers_oid in snmp_physical_entity_info, 'Cannot find fan tachometers info in physical entity mib'
             tachometers_fact = snmp_physical_entity_info[tachometers_oid]
-            assert tachometers_fact['entPhysDescr'] == 'tachometers for {}'.format(name)
+            assert tachometers_fact['entPhysDescr'] == 'Tachometers for {}'.format(name)
             assert tachometers_fact['entPhysContainedIn'] == expect_oid
             assert tachometers_fact['entPhysClass'] == PHYSICAL_CLASS_SENSOR
             assert tachometers_fact['entPhyParentRelPos'] == 1
-            assert tachometers_fact['entPhysName'] == 'tachometers for {}'.format(name)
+            assert tachometers_fact['entPhysName'] == 'Tachometers for {}'.format(name)
             assert tachometers_fact['entPhysHwVer'] == ''
             assert tachometers_fact['entPhysFwVer'] == ''
             assert tachometers_fact['entPhysSwVer'] == ''
