@@ -33,10 +33,9 @@ cache = FactsCache()
 pytest_plugins = ('tests.common.plugins.ptfadapter',
                   'tests.common.plugins.ansible_fixtures',
                   'tests.common.plugins.dut_monitor',
-                  'tests.common.plugins.fib',
                   'tests.common.plugins.tacacs',
                   'tests.common.plugins.loganalyzer',
-                  'tests.common.plugins.psu_controller',
+                  'tests.common.plugins.pdu_controller',
                   'tests.common.plugins.sanity_check',
                   'tests.common.plugins.custom_markers',
                   'tests.common.plugins.test_completeness',
@@ -837,8 +836,13 @@ def pytest_generate_tests(metafunc):
     if "enum_asic_index" in metafunc.fixturenames:
         metafunc.parametrize("enum_asic_index", generate_param_asic_index(metafunc, dut_indices, ASIC_PARAM_TYPE_ALL))
     if "enum_frontend_asic_index" in metafunc.fixturenames:
-        metafunc.parametrize("enum_frontend_asic_index",generate_param_asic_index(metafunc, dut_indices, ASIC_PARAM_TYPE_FRONTEND))
-
+        metafunc.parametrize(
+            "enum_frontend_asic_index",
+            generate_param_asic_index(
+                metafunc, dut_indices, ASIC_PARAM_TYPE_FRONTEND
+            ),
+            scope="class"
+        )
     if "enum_dut_portname" in metafunc.fixturenames:
         metafunc.parametrize("enum_dut_portname", generate_port_lists(metafunc, "all_ports"))
     if "enum_dut_portname_oper_up" in metafunc.fixturenames:
