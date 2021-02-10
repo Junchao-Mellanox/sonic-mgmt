@@ -1604,6 +1604,13 @@ class OnyxHost(AnsibleHostBase):
         logging.info('No shut interface [%s]' % interface_name)
         return out
 
+    def set_interface_speed(self, interface_name, speed):
+        out = self.host.onyx_config(
+            lines=['speed {}'.format(speed)],
+            parents='interface %s' % interface_name)
+        logging.info('No shut interface [%s]' % interface_name)
+        return out
+
     def check_intf_link_state(self, interface_name):
         show_int_result = self.host.onyx_command(
             commands=['show interfaces ethernet {} | include "Operational state"'.format(interface_name)])[self.hostname]
