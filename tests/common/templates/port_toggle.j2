@@ -1,0 +1,9 @@
+{
+    "PORT": {
+{% for port_name in port_names %}
+        "{{ port_name }}": {
+            "admin_status": "{{ port_status }}"
+        }{% if not loop.last %},{% endif %}
+{% endfor %}
+    }
+}

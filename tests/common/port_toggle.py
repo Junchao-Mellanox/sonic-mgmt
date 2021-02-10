@@ -3,6 +3,8 @@ Tool used for shutdown/startup port on the DUT.
 """
 
 import datetime
+import os
+import jinja2
 import time
 import logging
 import pprint
@@ -10,6 +12,11 @@ import pprint
 from tests.common.helpers.assertions import pytest_assert
 
 logger = logging.getLogger(__name__)
+
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+DUT_TMP_DIR = '/tmp/port_toggle'
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+PORT_TOGGLE_TEMPLATE = 'port_toggle.j2'
 
 
 def port_toggle(duthost, tbinfo, ports=None, wait_time_getter=None, wait_after_ports_up=60, watch=False):
@@ -44,16 +51,10 @@ def port_toggle(duthost, tbinfo, ports=None, wait_time_getter=None, wait_after_p
     port_down_wait_time, port_up_wait_time = wait_time_getter(duthost, len(ports))
     logger.info('toggling ports:\n%s', pprint.pformat(ports))
 
-    cmds_down = []
-    cmds_up = []
-    for port in ports:
-        cmds_down.append('config interface shutdown {}'.format(port))
-        cmds_up.append('config interface startup {}'.format(port))
-
     shutdown_ok = False
     shutdown_err_msg = ''
     try:
-        duthost.shell_cmds(cmds=cmds_down)
+        config_port_admin_status(duthost, ports, 'down')
         if watch:
             time.sleep(1)
 
@@ -88,7 +89,7 @@ def port_toggle(duthost, tbinfo, ports=None, wait_time_getter=None, wait_after_p
     startup_ok = False
     startup_err_msg = ''
     try:
-        duthost.shell_cmds(cmds=cmds_up)
+        config_port_admin_status(duthost, ports, 'up')
 
         logger.info('Wait for ports to become up.')
         start_time = datetime.datetime.now()
@@ -144,3 +145,24 @@ def get_port_toggle_wait_time(duthost, port_count):
         port_up_wait_time = int(port_up_wait_time * port_count_factor)
 
     return port_down_wait_time, port_up_wait_time
+
+
+def config_ports_admin_status(duthost, ports, status):
+    """Config ports admin status
+
+    Args:
+        duthost: DUT host object
+        ports: Port name list
+        status: Port status
+    """
+    port_toggle_vars = {
+        'port_names': ports,
+        'port_status': status
+    }
+
+    ports_config_path = os.path.join(DUT_TMP_DIR, 'config_port_{}.json'.format(status))
+    config_template = jinja2.Template(open(os.path.join(TEMPLATE_DIR, PORT_TOGGLE_TEMPLATE)).read())
+
+    duthost.command("mkdir -p {}".format(DUT_TMP_DIR))
+    duthost.copy(content=config_template.render(port_toggle_vars), dest=ports_config_path)
+    duthost.command('sonic-cfggen -j {} --write-to-db'.format(ports_config_path))
