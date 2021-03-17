@@ -109,7 +109,7 @@ class FanoutHost(object):
             boolean: True if auto negotiation mode is enabled else False. Return None if 
             the auto negotiation mode is unknown or unsupported.
         """
-        return self.get_auto_negotiation_mode(interface_name)
+        return self.host.get_auto_negotiation_mode(interface_name)
 
     def set_speed(self, interface_name, speed):
         """Set interface speed according to the auto negotiation mode. When auto negotiation mode
@@ -125,7 +125,7 @@ class FanoutHost(object):
             boolean: True if success. Usually, the method return False only if the operation
             is not supported or failed.
         """
-        return self.set_speed(interface_name, speed)
+        return self.host.set_speed(interface_name, speed)
 
     def get_speed(self, interface_name):
         """Get interface speed
@@ -136,4 +136,4 @@ class FanoutHost(object):
         Returns:
             str: SONiC style interface speed value. E.g, 1G=1000, 10G=10000, 100G=100000.
         """
-        return self.get_speed(interface_name)
+        return self.host.get_speed(interface_name)

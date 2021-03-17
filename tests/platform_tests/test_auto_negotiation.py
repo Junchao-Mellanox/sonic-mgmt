@@ -25,7 +25,7 @@ cadidate_test_ports = {}
 
 
 @pytest.fixture(scope='module', autouse=True)
-def recover_ports(duthosts, enum_dut_portname, fanouthosts):
+def recover_ports(duthosts, enum_dut_portname_module_fixture, fanouthosts):
     """Module level fixture that automatically do following job:
         1. Build global candidate test ports 
         2. Save fanout port state before the test
@@ -33,12 +33,13 @@ def recover_ports(duthosts, enum_dut_portname, fanouthosts):
 
     Args:
         duthosts: DUT object
-        enum_dut_portname (str): DUT port name
+        enum_dut_portname_module_fixture (str): DUT port name
         fanouthosts: Fanout objects
     """
     global cadidate_test_ports
     fanout_original_port_states = {}
-    dutname, portname = decode_dut_port_name(enum_dut_portname)
+    dutname, portname = decode_dut_port_name(enum_dut_portname_module_fixture)
+    logger.info('Collecting existing port configuration for DUT and fanout...')
     for duthost in duthosts:
         if dutname == 'unknown' or dutname == duthost.hostname:
             candidates = build_test_candidates(duthost, fanouthosts, portname)
@@ -52,11 +53,13 @@ def recover_ports(duthosts, enum_dut_portname, fanouthosts):
     
     yield
 
+    logger.info('Recovering port configuration for fanout...')
     for fanout, port_data in fanout_original_port_states.items():
         for port, state in port_data.items():
             fanout.set_auto_negotiation_mode(port, state[0])
             fanout.set_speed(port, state[1])
 
+    logger.info('Recovering port configuration for DUT...')
     for duthost in duthosts:
         config_reload(duthost)
 
@@ -140,6 +143,7 @@ def test_auto_negotiation_advertised_speeds_all():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
+            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
             # Enable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, True)
             if not success:
@@ -157,6 +161,7 @@ def test_auto_negotiation_advertised_speeds_all():
             duthost.shell('config interface autoneg {} enabled'.format(dut_port))
             duthost.shell('config interface advertised-speeds {} all'.format(dut_port))
 
+        logger.info('Wait until all ports are up')
         wait_result = wait_until(ALL_PORT_WAIT_TIME, 
                                  PORT_STATUS_CHECK_INTERVAL, 
                                  check_ports_up, 
@@ -165,9 +170,16 @@ def test_auto_negotiation_advertised_speeds_all():
         pytest_assert(wait_result, 'Some ports are still down')
 
         # Make sure all ports are negotiated to the highest speed
+        logger.info('Checking the actual speed is equal to highest speed')
         int_status = duthost.show_interface(command="status")["ansible_facts"]['int_status']
         for dut_port, fanout, fanout_port in candidates:
             supported_speeds = get_supported_speeds_for_port(duthost, dut_port, fanout, fanout_port)
+            logger.info('DUT port = {}, fanout port = {}, supported speeds = {}, actual speed = {}'.format(
+                dut_port,
+                fanout_port,
+                supported_speeds,
+                int_status[dut_port]['speed']
+            ))
             highest_speed = supported_speeds[-1]
             pytest_assert(int_status[dut_port]['speed'] == highest_speed, 'Actual speed is not the highest speed')
 
@@ -181,6 +193,7 @@ def test_auto_negotiation_advertised_each_speed():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
+            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
             # Enable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, True)
             if not success:
@@ -189,7 +202,7 @@ def test_auto_negotiation_advertised_each_speed():
                 continue
 
             # Advertise all supported speeds in fanout port
-            success = fanout.set_speed(fanout_port)
+            success = fanout.set_speed(fanout_port, None)
             if not success:
                 # Fanout does not support set advertise speeds for this port
                 logger.info('Ignore port {} due to fanout port {} does not support setting advertised speeds'.format(dut_port, fanout_port))
@@ -204,6 +217,7 @@ def test_auto_negotiation_advertised_each_speed():
             duthost.shell('config interface autoneg {} enabled'.format(dut_port))
             for speed in supported_speeds:
                 duthost.shell('config interface advertised-speeds {} {}'.format(dut_port, speed))
+                logger.info('Wait until the port status is up, expected speed: {}'.format(speed))
                 wait_result = wait_until(SINGLE_PORT_WAIT_TIME, 
                                         PORT_STATUS_CHECK_INTERVAL, 
                                         check_ports_up, 
@@ -221,6 +235,7 @@ def test_force_speed():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
+            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
             # Disable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, False)
             if not success:
@@ -238,6 +253,7 @@ def test_force_speed():
             for speed in supported_speeds:
                 fanout.set_speed(fanout_port, speed)
                 duthost.shell('config interface speed {} {}'.format(dut_port, speed))
+                logger.info('Wait until the port status is up, expected speed: {}'.format(speed))
                 wait_result = wait_until(SINGLE_PORT_WAIT_TIME, 
                                         PORT_STATUS_CHECK_INTERVAL, 
                                         check_ports_up, 

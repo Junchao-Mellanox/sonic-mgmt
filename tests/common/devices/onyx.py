@@ -79,15 +79,15 @@ class OnyxHost(AnsibleHostBase):
             list: A list of supported speed strings or None
         """
         show_int_result = self.host.onyx_command(
-            commands=['show interfaces ethernet {} | include "Supported speeds"'.format(interface_name)])[self.hostname]
+            commands=['show interfaces {} | include "Supported speeds"'.format(interface_name)])[self.hostname]
         
-        out = show_int_result['stdout'].strip()
-        logger.info('Get supported speeds for port {} from onyx: {}'.format(interface_name, out))
+        out = show_int_result['stdout'][0].strip()
+        logger.debug('Get supported speeds for port {} from onyx: {}'.format(interface_name, out))
         if not out:
             return None
         
         # The output should be something like: "Supported speeds:1G 10G 25G 50G"
-        speeds = out.split(':').split()
+        speeds = out.split(':')[-1].split()
         return [x[:-1] + '000' for x in speeds]
 
     def set_auto_negotiation_mode(self, interface_name, mode):
@@ -107,7 +107,7 @@ class OnyxHost(AnsibleHostBase):
             out = self.host.onyx_config(
                 lines=['speed {} force'.format(speed[-3] + 'G')],
                 parents='interface ethernet %s' % interface_name)
-            logger.info('Set auto neg to False for port {} from onyx: {}'.format(interface_name, out))
+            logger.debug('Set auto neg to False for port {} from onyx: {}'.format(interface_name, out))
         return True
 
     def get_auto_negotiation_mode(self, interface_name):
@@ -121,10 +121,10 @@ class OnyxHost(AnsibleHostBase):
             the auto negotiation mode is unknown or unsupported.
         """
         show_int_result = self.host.onyx_command(
-            commands=['show interfaces ethernet {} | include "Auto-negotiation"'.format(interface_name)])[self.hostname]
+            commands=['show interfaces {} | include "Auto-negotiation"'.format(interface_name)])[self.hostname]
         
-        out = show_int_result['stdout'].strip()
-        logger.info('Get auto negotiation mode for port {} from onyx: {}'.format(interface_name, out))
+        out = show_int_result['stdout'][0].strip()
+        logger.debug('Get auto negotiation mode for port {} from onyx: {}'.format(interface_name, out))
         if not out:
             return None
         
@@ -147,20 +147,20 @@ class OnyxHost(AnsibleHostBase):
         """
         autoneg_mode = self.get_auto_negotiation_mode(interface_name)
         # ONYX does not support configuring a certain speed for a port when autoneg_mode=True
-        if autoneg_mode and speed is None:
+        if autoneg_mode:
             out = self.host.onyx_config(
-                    lines=['speed auto'],
+                    lines=['speed {}'.format(speed[-3] + 'G')],
                     parents='interface ethernet %s' % interface_name)
-            logger.info('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
+            logger.debug('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
             return True
         elif not autoneg_mode and speed is not None:
             out = self.host.onyx_config(
                 lines=['speed {} force'.format(speed[-3] + 'G')],
                 parents='interface ethernet %s' % interface_name)
-            logger.info('Set force speed for port {} from onyx: {}'.format(interface_name, out))
+            logger.debug('Set force speed for port {} from onyx: {}'.format(interface_name, out))
             return True
 
-        logger.info('Failed to set speed {} for port {} from onyx'.format(speed, interface_name))
+        logger.debug('Failed to set speed {} for port {} from onyx'.format(speed, interface_name))
         return False
 
     def get_speed(self, interface_name):
@@ -173,10 +173,10 @@ class OnyxHost(AnsibleHostBase):
             str: SONiC style interface speed value. E.g, 1G=1000, 10G=10000, 100G=100000.
         """
         show_int_result = self.host.onyx_command(
-            commands=['show interfaces ethernet {} | include "Actual speed"'.format(interface_name)])[self.hostname]
+            commands=['show interfaces {} | include "Actual speed"'.format(interface_name)])[self.hostname]
         
-        out = show_int_result['stdout'].strip()
-        logger.info('Get speed for port {} from onyx: {}'.format(interface_name, out))
+        out = show_int_result['stdout'][0].strip()
+        logger.debug('Get speed for port {} from onyx: {}'.format(interface_name, out))
         if not out:
             return None
         
