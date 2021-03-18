@@ -53,7 +53,7 @@ class OnyxHost(AnsibleHostBase):
     def set_interface_lacp_rate_mode(self, interface_name, mode):
         out = self.host.onyx_config(
             lines=['lacp rate %s' % mode],
-            parents='interface ethernet %s' % interface_name)
+            parents='interface %s' % interface_name)
         logging.info("Set interface [%s] lacp rate to [%s]" % (interface_name, mode))
         return out
 
@@ -106,7 +106,7 @@ class OnyxHost(AnsibleHostBase):
             speed = self.get_speed(interface_name)
             out = self.host.onyx_config(
                 lines=['speed {} force'.format(speed[-3] + 'G')],
-                parents='interface ethernet %s' % interface_name)
+                parents='interface %s' % interface_name)
             logger.debug('Set auto neg to False for port {} from onyx: {}'.format(interface_name, out))
         return True
 
@@ -146,17 +146,20 @@ class OnyxHost(AnsibleHostBase):
             is not supported or failed.
         """
         autoneg_mode = self.get_auto_negotiation_mode(interface_name)
-        # ONYX does not support configuring a certain speed for a port when autoneg_mode=True
+        if not speed:
+            speed = 'auto'
+        else:
+            speed = speed[:-3] + 'G'
         if autoneg_mode:
             out = self.host.onyx_config(
-                    lines=['speed {}'.format(speed[-3] + 'G')],
-                    parents='interface ethernet %s' % interface_name)
+                    lines=['speed {}'.format(speed)],
+                    parents='interface %s' % interface_name)
             logger.debug('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
             return True
         elif not autoneg_mode and speed is not None:
             out = self.host.onyx_config(
-                lines=['speed {} force'.format(speed[-3] + 'G')],
-                parents='interface ethernet %s' % interface_name)
+                lines=['speed {} force'.format(speed)],
+                parents='interface %s' % interface_name)
             logger.debug('Set force speed for port {} from onyx: {}'.format(interface_name, out))
             return True
 

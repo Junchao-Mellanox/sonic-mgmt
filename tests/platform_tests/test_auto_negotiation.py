@@ -91,12 +91,21 @@ def get_supported_speeds_for_port(duthost, dut_port_name, fanout, fanout_port_na
     if not cable_supported_speeds:
         return [duthost.get_speed(dut_port_name)]
 
+    logger.info('dut_supported_speeds = {}, fanout_supported_speeds = {}, cable_supported_speeds = {}'.format(
+        dut_supported_speeds,
+        fanout_supported_speeds,
+        cable_supported_speeds
+    ))
     supported_speeds = set(dut_supported_speeds) & set(fanout_supported_speeds) & set(cable_supported_speeds)
     if not supported_speeds:
         # Since the port link is up before the test, we should not hit this branch
         # However, in case we hit here, we use current actual speed as supported speed
         return [duthost.get_speed(dut_port_name)]
-    return sorted(supported_speeds)
+    
+    # sort it as int
+    supported_speeds = [int(speed) for speed in supported_speeds]
+    supported_speeds = sorted(supported_speeds)
+    return [str(speed) for speed in supported_speeds]
 
 
 def get_cable_supported_speeds(duthost, dut_port_name):
@@ -143,7 +152,7 @@ def test_auto_negotiation_advertised_speeds_all():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
-            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
+            logger.info('Start test for DUT port {} and fanout port {}'.format(dut_port, fanout_port))
             # Enable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, True)
             if not success:
@@ -181,7 +190,8 @@ def test_auto_negotiation_advertised_speeds_all():
                 int_status[dut_port]['speed']
             ))
             highest_speed = supported_speeds[-1]
-            pytest_assert(int_status[dut_port]['speed'] == highest_speed, 'Actual speed is not the highest speed')
+            actual_speed = int_status[dut_port]['speed'][:-1] + '000'
+            pytest_assert(actual_speed == highest_speed, 'Actual speed is not the highest speed')
 
 
 def test_auto_negotiation_advertised_each_speed():
@@ -193,7 +203,7 @@ def test_auto_negotiation_advertised_each_speed():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
-            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
+            logger.info('Start test for DUT port {} and fanout port {}'.format(dut_port, fanout_port))
             # Enable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, True)
             if not success:
@@ -235,7 +245,7 @@ def test_force_speed():
             continue
         logger.info('Test candidate ports are {}'.format(candidates))
         for dut_port, fanout, fanout_port in candidates:
-            logger.info('Start test for DUT port {} and fanout port'.format(dut_port, fanout_port))
+            logger.info('Start test for DUT port {} and fanout port {}'.format(dut_port, fanout_port))
             # Disable auto negotiation on fanout port
             success = fanout.set_auto_negotiation_mode(fanout_port, False)
             if not success:
@@ -315,7 +325,7 @@ class MlnxCableSupportedSpeedsHelper(object):
         pos = output.find('(')
         if pos == -1:
             return None
-        speeds_str = output[pos:-1]
+        speeds_str = output[pos+1:-1]
         speeds =  [speed[:-1] + '000' for speed in speeds_str.split(',')]
         cls.supported_speeds[(duthost, dut_port_name)] = speeds
         return speeds
