@@ -105,8 +105,8 @@ class OnyxHost(AnsibleHostBase):
         else:
             speed = self.get_speed(interface_name)
             out = self.host.onyx_config(
-                lines=['speed {} force'.format(speed[-3] + 'G')],
-                parents='interface %s' % interface_name)
+                lines=['shutdown', 'speed {} force'.format(speed[-3] + 'G', 'no shutdown')],
+                parents='interface %s' % interface_name)[self.hostname]
             logger.debug('Set auto neg to False for port {} from onyx: {}'.format(interface_name, out))
         return True
 
@@ -152,14 +152,14 @@ class OnyxHost(AnsibleHostBase):
             speed = speed[:-3] + 'G'
         if autoneg_mode:
             out = self.host.onyx_config(
-                    lines=['speed {}'.format(speed)],
-                    parents='interface %s' % interface_name)
+                    lines=['shutdown', 'speed {}'.format(speed), 'no shutdown'],
+                    parents='interface %s' % interface_name)[self.hostname]
             logger.debug('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
             return True
         elif not autoneg_mode and speed is not None:
             out = self.host.onyx_config(
-                lines=['speed {} force'.format(speed)],
-                parents='interface %s' % interface_name)
+                lines=['shutdown', 'speed {} force'.format(speed), 'no shutdown'],
+                parents='interface %s' % interface_name)[self.hostname]
             logger.debug('Set force speed for port {} from onyx: {}'.format(interface_name, out))
             return True
 
@@ -184,5 +184,6 @@ class OnyxHost(AnsibleHostBase):
             return None
         
         # The output should be something like: "Actual speed:50G"
-        items = out.split(':')
-        return items[1].strip()[:-1] + '000'
+        speed = out.split(':')[-1].strip()
+        pos = speed.find('G')
+        return speed[:pos] + '000'

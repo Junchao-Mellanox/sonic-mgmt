@@ -1,6 +1,7 @@
 import logging
 import pytest
 
+from natsort import natsorted
 from tests.common.config_reload import config_reload
 from tests.common.helpers.assertions import pytest_assert, pytest_require
 from tests.common.helpers.dut_ports import decode_dut_port_name
@@ -102,10 +103,7 @@ def get_supported_speeds_for_port(duthost, dut_port_name, fanout, fanout_port_na
         # However, in case we hit here, we use current actual speed as supported speed
         return [duthost.get_speed(dut_port_name)]
     
-    # sort it as int
-    supported_speeds = [int(speed) for speed in supported_speeds]
-    supported_speeds = sorted(supported_speeds)
-    return [str(speed) for speed in supported_speeds]
+    return natsorted(supported_speeds)
 
 
 def get_cable_supported_speeds(duthost, dut_port_name):
@@ -234,6 +232,10 @@ def test_auto_negotiation_advertised_each_speed():
                                         duthost, 
                                         [dut_port])
                 pytest_assert(wait_result, '{} are still down'.format(dut_port))
+                dut_actual_speed = duthost.get_speed(dut_port)
+                fanout_actual_speed = fanout.get_speed(fanout_port)
+                pytest_assert(dut_actual_speed == speed, 'expect DUT speed: {}, but got: {}'.format(speed, dut_actual_speed))
+                pytest_assert(fanout_actual_speed == speed, 'expect fanout speed: {}, but got {}'.format(speed, fanout_actual_speed))
 
 
 def test_force_speed():
@@ -270,6 +272,10 @@ def test_force_speed():
                                         duthost, 
                                         [dut_port])
                 pytest_assert(wait_result, '{} are still down'.format(dut_port))
+                dut_actual_speed = duthost.get_speed(dut_port)
+                fanout_actual_speed = fanout.get_speed(fanout_port)
+                pytest_assert(dut_actual_speed == speed, 'expect DUT speed: {}, but got: {}'.format(speed, dut_actual_speed))
+                pytest_assert(fanout_actual_speed == speed, 'expect fanout speed: {}, but got {}'.format(speed, fanout_actual_speed))
 
 
 def get_cable_supported_speeds_helper(duthost):
@@ -313,7 +319,7 @@ class MlnxCableSupportedSpeedsHelper(object):
 
         if duthost not in cls.sorted_ports:
             int_status = duthost.show_interface(command="status")["ansible_facts"]['int_status']
-            ports = sorted([port_name for port_name in int_status.keys()])
+            ports = natsorted([port_name for port_name in int_status.keys()])
             cls.sorted_ports[duthost] = ports
         port_index = cls.sorted_ports[duthost].index(dut_port_name) + 1
         cmd = 'mlxlink -d /dev/mst/mt52100_pci_cr0 -p {} | grep "Supported Cable Speed"'.format(port_index)
