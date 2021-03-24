@@ -1,5 +1,6 @@
 import logging
 import pytest
+import random
 
 from natsort import natsorted
 from tests.common.config_reload import config_reload
@@ -43,9 +44,11 @@ def recover_ports(duthosts, enum_dut_portname_module_fixture, fanouthosts):
     logger.info('Collecting existing port configuration for DUT and fanout...')
     for duthost in duthosts:
         if dutname == 'unknown' or dutname == duthost.hostname:
-            candidates = build_test_candidates(duthost, fanouthosts, portname)
-            cadidate_test_ports[duthost] = candidates
-            for _, fanout, fanout_port in candidates:
+            all_ports = build_test_candidates(duthost, fanouthosts, portname)
+            # Test all ports takes too much time (sometimes more than an hour), 
+            # so we choose 3 ports randomly as the cadidates ports
+            cadidate_test_ports[duthost] = random.sample(all_ports, 3)
+            for _, fanout, fanout_port in cadidate_test_ports[duthost]:
                 auto_neg_mode = fanout.get_auto_negotiation_mode(fanout_port)
                 speed = fanout.get_speed(fanout_port)
                 if not fanout in fanout_original_port_states:
