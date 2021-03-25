@@ -266,7 +266,10 @@ def test_force_speed():
             logger.info('Run test based on supported speeds: {}'.format(supported_speeds))
             duthost.shell('config interface autoneg {} disabled'.format(dut_port))
             for speed in supported_speeds:
-                fanout.set_speed(fanout_port, speed)
+                success = fanout.set_speed(fanout_port, speed)
+                if not success:
+                    logger.info('Skip speed {} because fanout does not support it'.format(speed))
+                    continue
                 duthost.shell('config interface speed {} {}'.format(dut_port, speed))
                 logger.info('Wait until the port status is up, expected speed: {}'.format(speed))
                 wait_result = wait_until(SINGLE_PORT_WAIT_TIME, 

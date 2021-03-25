@@ -81,6 +81,10 @@ class OnyxHost(AnsibleHostBase):
         show_int_result = self.host.onyx_command(
             commands=['show interfaces {} | include "Supported speeds"'.format(interface_name)])[self.hostname]
         
+        if 'failed' in show_int_result and show_int_result['failed']:
+            logger.error('Failed to get supported speed for {} - {}'.format(interface_name, show_int_result['msg']))
+            return None
+
         out = show_int_result['stdout'][0].strip()
         logger.debug('Get supported speeds for port {} from onyx: {}'.format(interface_name, out))
         if not out:
@@ -101,12 +105,16 @@ class OnyxHost(AnsibleHostBase):
             boolean: False if the operation is not supported else True
         """
         if mode:
-            self.set_speed(interface_name, None)
+            return self.set_speed(interface_name, None)
         else:
             speed = self.get_speed(interface_name)
             out = self.host.onyx_config(
-                lines=['shutdown', 'speed {} force'.format(speed[-3] + 'G', 'no shutdown')],
+                lines=['shutdown', 'speed {}G no-autoneg'.format(speed[:-3]), 'no shutdown'],
                 parents='interface %s' % interface_name)[self.hostname]
+
+            if 'failed' in out and out['failed']:
+                logger.error('Failed to set auto neg to False for port {} - {}'.format(interface_name, out['msg']))
+                return False
             logger.debug('Set auto neg to False for port {} from onyx: {}'.format(interface_name, out))
         return True
 
@@ -123,6 +131,10 @@ class OnyxHost(AnsibleHostBase):
         show_int_result = self.host.onyx_command(
             commands=['show interfaces {} | include "Auto-negotiation"'.format(interface_name)])[self.hostname]
         
+        if 'failed' in show_int_result and show_int_result['failed']:
+            logger.error('Failed to get auto neg mode for port {} - {}'.format(interface_name, show_int_result['msg']))
+            return None
+
         out = show_int_result['stdout'][0].strip()
         logger.debug('Get auto negotiation mode for port {} from onyx: {}'.format(interface_name, out))
         if not out:
@@ -154,12 +166,18 @@ class OnyxHost(AnsibleHostBase):
             out = self.host.onyx_config(
                     lines=['shutdown', 'speed {}'.format(speed), 'no shutdown'],
                     parents='interface %s' % interface_name)[self.hostname]
+            if 'failed' in out and out['failed']:
+                logger.error('Failed to set speed for port {} - {}'.format(interface_name, out['msg']))
+                return False
             logger.debug('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
             return True
         elif not autoneg_mode and speed is not None:
             out = self.host.onyx_config(
-                lines=['shutdown', 'speed {} force'.format(speed), 'no shutdown'],
+                lines=['shutdown', 'speed {} no-autoneg'.format(speed), 'no shutdown'],
                 parents='interface %s' % interface_name)[self.hostname]
+            if 'failed' in out and out['failed']:
+                logger.error('Failed to set speed for port {} - {}'.format(interface_name, out['msg']))
+                return False
             logger.debug('Set force speed for port {} from onyx: {}'.format(interface_name, out))
             return True
 
@@ -177,6 +195,10 @@ class OnyxHost(AnsibleHostBase):
         """
         show_int_result = self.host.onyx_command(
             commands=['show interfaces {} | include "Actual speed"'.format(interface_name)])[self.hostname]
+
+        if 'failed' in show_int_result and show_int_result['failed']:
+            logger.error('Failed to get speed for port {} - {}'.format(interface_name, show_int_result['msg']))
+            return False
         
         out = show_int_result['stdout'][0].strip()
         logger.debug('Get speed for port {} from onyx: {}'.format(interface_name, out))
