@@ -162,7 +162,7 @@ class OnyxHost(AnsibleHostBase):
             speed = 'auto'
         else:
             speed = speed[:-3] + 'G'
-        if autoneg_mode:
+        if autoneg_mode or speed == 'auto':
             out = self.host.onyx_config(
                     lines=['shutdown', 'speed {}'.format(speed), 'no shutdown'],
                     parents='interface %s' % interface_name)[self.hostname]
@@ -171,7 +171,7 @@ class OnyxHost(AnsibleHostBase):
                 return False
             logger.debug('Set auto speed for port {} from onyx: {}'.format(interface_name, out))
             return True
-        elif not autoneg_mode and speed is not None:
+        elif not autoneg_mode:
             out = self.host.onyx_config(
                 lines=['shutdown', 'speed {} no-autoneg'.format(speed), 'no shutdown'],
                 parents='interface %s' % interface_name)[self.hostname]

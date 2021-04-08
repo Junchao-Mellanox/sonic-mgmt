@@ -309,6 +309,8 @@ class MlnxCableSupportedSpeedsHelper(object):
     # Key: tuple of dut host object and interface name, value: supported speed list
     supported_speeds = {}
 
+    device_path = None
+
     @classmethod
     def get_cable_supported_speeds(cls, duthost, dut_port_name):
         """Helper function to get supported speeds for a cable
@@ -327,8 +329,11 @@ class MlnxCableSupportedSpeedsHelper(object):
             int_status = duthost.show_interface(command="status")["ansible_facts"]['int_status']
             ports = natsorted([port_name for port_name in int_status.keys()])
             cls.sorted_ports[duthost] = ports
+
+        if not cls.device_path:
+            cls.device_path = duthost.shell('ls /dev/mst/*_pci_cr0')['stdout'].strip()
         port_index = cls.sorted_ports[duthost].index(dut_port_name) + 1
-        cmd = 'mlxlink -d /dev/mst/mt52100_pci_cr0 -p {} | grep "Supported Cable Speed"'.format(port_index)
+        cmd = 'mlxlink -d {} -p {} | grep "Supported Cable Speed"'.format(cls.device_path, port_index)
         output = duthost.shell(cmd)['stdout'].strip()
         # Valid output should be something like "Supported Cable Speed:0x68b1f141 (100G,56G,50G,40G,25G,10G,1G)"
         logger.info('Get supported speeds for {} {}: {}'.format(duthost, dut_port_name, output))
