@@ -17,7 +17,7 @@ STATE_PORT_FIELD_SUPPORTED_SPEEDS = 'supported_speeds'
 APPL_DB = 'APPL_DB'
 APPL_PORT_TABLE_TEMPLATE = 'PORT_TABLE:{}'
 ALL_PORT_WAIT_TIME = 60
-SINGLE_PORT_WAIT_TIME = 30
+SINGLE_PORT_WAIT_TIME = 40
 PORT_STATUS_CHECK_INTERVAL = 10
 
 # To avoid getting candidate test ports again and again, use a global variable
@@ -125,7 +125,7 @@ def get_cable_supported_speeds(duthost, dut_port_name):
     return helper.get_cable_supported_speeds(duthost, dut_port_name) if helper else None
 
 
-def check_ports_up(duthost, dut_ports):
+def check_ports_up(duthost, dut_ports, expect_speed=None):
     """Check if given ports are operational up or not
 
     Args:
@@ -136,11 +136,21 @@ def check_ports_up(duthost, dut_ports):
         boolean: True if all given ports are up
     """
     ports_down = duthost.interface_facts(up_ports=dut_ports)["ansible_facts"]["ansible_interface_link_down_ports"]
-    db_ports_down = duthost.show_interface(command="status", up_ports=dut_ports)["ansible_facts"]\
-        ["ansible_interface_link_down_ports"]
+    show_interface_output = duthost.show_interface(command="status", up_ports=dut_ports)["ansible_facts"]
+    db_ports_down = show_interface_output["ansible_interface_link_down_ports"]
     down_ports = set(ports_down) | set(db_ports_down)
     logger.info('Down ports are: {}'.format(down_ports))
-    return len(down_ports) == 0
+    if len(down_ports) == 0:
+        if expect_speed:
+            int_status = show_interface_output['int_status']
+            for dut_port in dut_ports:
+                actual_speed = int_status[dut_port]['speed'][:-1] + '000'
+                if actual_speed != expect_speed:
+                    return False
+        return True
+    else:
+        return False
+
 
 
 def test_auto_negotiation_advertised_speeds_all():
@@ -233,11 +243,10 @@ def test_auto_negotiation_advertised_each_speed():
                                         PORT_STATUS_CHECK_INTERVAL, 
                                         check_ports_up, 
                                         duthost, 
-                                        [dut_port])
+                                        [dut_port], 
+                                        speed)
                 pytest_assert(wait_result, '{} are still down'.format(dut_port))
-                dut_actual_speed = duthost.get_speed(dut_port)
                 fanout_actual_speed = fanout.get_speed(fanout_port)
-                pytest_assert(dut_actual_speed == speed, 'expect DUT speed: {}, but got: {}'.format(speed, dut_actual_speed))
                 pytest_assert(fanout_actual_speed == speed, 'expect fanout speed: {}, but got {}'.format(speed, fanout_actual_speed))
 
 
@@ -276,11 +285,10 @@ def test_force_speed():
                                         PORT_STATUS_CHECK_INTERVAL, 
                                         check_ports_up, 
                                         duthost, 
-                                        [dut_port])
+                                        [dut_port],
+                                        speed)
                 pytest_assert(wait_result, '{} are still down'.format(dut_port))
-                dut_actual_speed = duthost.get_speed(dut_port)
                 fanout_actual_speed = fanout.get_speed(fanout_port)
-                pytest_assert(dut_actual_speed == speed, 'expect DUT speed: {}, but got: {}'.format(speed, dut_actual_speed))
                 pytest_assert(fanout_actual_speed == speed, 'expect fanout speed: {}, but got {}'.format(speed, fanout_actual_speed))
 
 
@@ -339,7 +347,7 @@ class MlnxCableSupportedSpeedsHelper(object):
         logger.info('Get supported speeds for {} {}: {}'.format(duthost, dut_port_name, output))
         if not output:
             return None
-        pos = output.find('(')
+        pos = output.rfind('(')
         if pos == -1:
             return None
         speeds_str = output[pos+1:-1]
