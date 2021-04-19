@@ -229,9 +229,10 @@ def test_auto_negotiation_advertised_each_speed():
                 logger.info('Ignore port {} due to fanout port {} does not support setting advertised speeds'.format(dut_port, fanout_port))
                 continue
 
-            logger.info('Trying to get a common supported speeds set among dut port, fanout port and cable')
+            logger.info('Trying to get a common supported speed set among dut port, fanout port and cable')
             supported_speeds = get_supported_speeds_for_port(duthost, dut_port, fanout, fanout_port)
             if not supported_speeds:
+                logger.warn('Ignore test for port {} due to cannot get supported speed for it'.format(dut_port))
                 continue
 
             logger.info('Run test based on supported speeds: {}'.format(supported_speeds))
@@ -270,6 +271,7 @@ def test_force_speed():
             logger.info('Trying to get a common supported speeds set among dut port, fanout port and cable')
             supported_speeds = get_supported_speeds_for_port(duthost, dut_port, fanout, fanout_port)
             if not supported_speeds:
+                logger.warn('Ignore test for port {} due to cannot get supported speed for it'.format(dut_port))
                 continue
 
             logger.info('Run test based on supported speeds: {}'.format(supported_speeds))
